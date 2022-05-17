@@ -4,14 +4,15 @@ module Coingecko
     , price
     ) where
 
-import Data.Time 
+import Data.Time (Day)
 import Data.Aeson (FromJSON)
 import GHC.Generics (Generic)
 import Network.HTTP.Client.Conduit (Request, parseRequest)
-import Network.HTTP.Simple (Response, getResponseBody, httpJSON)
+import Network.HTTP.Simple (Response, getResponseBody, httpJSONEither, JSONException)
 
 data Currencies = Currencies {
-    eur :: Double 
+    eur :: Double,
+    usd :: Double 
 } deriving (Generic, Show)
 
 instance FromJSON Currencies
@@ -28,12 +29,20 @@ data MarketData = MarketData {
 
 instance FromJSON MarketData
 
-priceNow :: String -> IO (Either String Double)
-priceNow name = do 
+priceNow :: String -> String -> IO (Either String Double)
+priceNow name currency = do 
     let url = "https://api.coingecko.com/api/v3/coins/" ++ name
     request <- parseRequest url :: IO Request
-    response <- httpJSON request :: IO (Response MarketData)
-    return $ Right $ eur $ current_price $ market_data $ getResponseBody response
+    response <- httpJSONEither request :: IO (Response (Either JSONException MarketData))
+    let body = getResponseBody response
+    case body of 
+        Left _ -> return $ Left "Not Found"
+        Right marketData -> 
+            if currency == "eur" 
+                then return $ Right $ eur $ current_price $ market_data marketData
+            else if currency == "usd"
+                then return $ Right $ usd $ current_price $ market_data marketData
+            else return $ Left "Currency Not Supported"
 
-price :: String -> Day -> IO (Either String Double)
-price _ _ = return $ Right 0
+price :: String -> String -> Day -> IO (Either String Double)
+price _ _ _ = return $ Right 0
