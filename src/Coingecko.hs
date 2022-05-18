@@ -1,11 +1,12 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE OverloadedStrings #-}
 module Coingecko
     ( priceNow
     , price
     ) where
 
 import Data.Time (Day)
-import Data.Aeson (FromJSON)
+import Data.Aeson (FromJSON, parseJSON, withObject, (.:))
 import GHC.Generics (Generic)
 import Network.HTTP.Client.Conduit (Request, parseRequest)
 import Network.HTTP.Simple (Response, getResponseBody, httpJSONEither, JSONException)
@@ -29,20 +30,30 @@ data MarketData = MarketData {
 
 instance FromJSON MarketData
 
+data Error = Error {
+    error' :: String 
+} deriving Show
+
+instance FromJSON Error where 
+    parseJSON = withObject "Error" $ \v -> Error <$> v .: "error"
+
 priceNow :: String -> String -> IO (Either String Double)
 priceNow name currency = do 
     let url = "https://api.coingecko.com/api/v3/coins/" ++ name
     request <- parseRequest url :: IO Request
     response <- httpJSONEither request :: IO (Response (Either JSONException MarketData))
-    let body = getResponseBody response
-    case body of 
-        Left _ -> return $ Left "Not Found"
+    case getResponseBody response of 
+        Left _ -> do 
+            response <- httpJSONEither request :: IO (Response (Either JSONException Error))
+            case getResponseBody response of 
+                Left e -> return $ Left $ show e
+                Right err -> return $ Left $ error' err
         Right marketData -> 
             if currency == "eur" 
                 then return $ Right $ eur $ current_price $ market_data marketData
             else if currency == "usd"
                 then return $ Right $ usd $ current_price $ market_data marketData
-            else return $ Left "Currency Not Supported"
+            else return $ Left $ "The currency '" ++ currency ++ "' is not supported."
 
 price :: String -> String -> Day -> IO (Either String Double)
 price _ _ _ = return $ Right 0
