@@ -5,7 +5,7 @@ module Coingecko
     , price
     ) where
 
-import Data.Time (Day)
+import Data.Time
 import Data.Aeson (FromJSON, parseJSON, withObject, (.:))
 import GHC.Generics (Generic)
 import Network.HTTP.Client.Conduit (Request, parseRequest)
@@ -55,5 +55,33 @@ priceNow name currency = do
                 then return $ Right $ usd $ current_price $ market_data marketData
             else return $ Left $ "The currency '" ++ currency ++ "' is not supported."
 
+data Simple = Simple {
+    id :: String 
+} deriving (Generic, Show)
+
+instance FromJSON Simple 
+
 price :: String -> String -> Day -> IO (Either String Double)
-price _ _ _ = return $ Right 0
+-- price _ _ _ = return $ Right 0
+price name currency day = do 
+    let url = "https://api.coingecko.com/api/v3/coins/" 
+            ++ name ++ "/history?date=" 
+            ++ formatTime defaultTimeLocale "%d-%m-%Y" day
+    request <- parseRequest url :: IO Request
+    response <- httpJSONEither request :: IO (Response (Either JSONException MarketData))
+    case getResponseBody response of 
+        Left _ -> do 
+            response <- httpJSONEither request :: IO (Response (Either JSONException Simple))
+            case getResponseBody response of 
+                Left _ -> do 
+                    response <- httpJSONEither request :: IO (Response (Either JSONException Error))
+                    case getResponseBody response of 
+                        Left e -> return $ Left $ show e
+                        Right err -> return $ Left $ error' err
+                Right simple -> return $ Left "Price not available."
+        Right marketData -> 
+            if currency == "eur" 
+                then return $ Right $ eur $ current_price $ market_data marketData
+            else if currency == "usd"
+                then return $ Right $ usd $ current_price $ market_data marketData
+            else return $ Left $ "The currency '" ++ currency ++ "' is not supported."
