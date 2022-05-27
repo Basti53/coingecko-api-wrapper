@@ -77,7 +77,7 @@ price name currency day = do
                     case getResponseBody response of 
                         Left _ -> return $ Left "Unknown error."
                         Right err -> return $ Left $ error' err
-                Right simple -> return $ Left "It seems like the price is not available for this date."
+                Right _ -> return $ Left "It seems like the price is not available for this date."
         Right marketData -> 
             if currency == "eur" 
                 then return $ Right $ eur $ current_price $ market_data marketData
