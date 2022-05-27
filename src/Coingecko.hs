@@ -46,7 +46,7 @@ priceNow name currency = do
         Left _ -> do 
             response <- httpJSONEither request :: IO (Response (Either JSONException Error))
             case getResponseBody response of 
-                Left e -> return $ Left $ show e
+                Left _ -> return $ Left "Unknown error."
                 Right err -> return $ Left $ error' err
         Right marketData -> 
             if currency == "eur" 
@@ -62,7 +62,6 @@ data Simple = Simple {
 instance FromJSON Simple 
 
 price :: String -> String -> Day -> IO (Either String Double)
--- price _ _ _ = return $ Right 0
 price name currency day = do 
     let url = "https://api.coingecko.com/api/v3/coins/" 
             ++ name ++ "/history?date=" 
@@ -76,9 +75,9 @@ price name currency day = do
                 Left _ -> do 
                     response <- httpJSONEither request :: IO (Response (Either JSONException Error))
                     case getResponseBody response of 
-                        Left e -> return $ Left $ show e
+                        Left _ -> return $ Left "Unknown error."
                         Right err -> return $ Left $ error' err
-                Right simple -> return $ Left "Price not available."
+                Right simple -> return $ Left "It seems like the price is not available for this date."
         Right marketData -> 
             if currency == "eur" 
                 then return $ Right $ eur $ current_price $ market_data marketData
