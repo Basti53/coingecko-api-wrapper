@@ -10,3 +10,9 @@ ghci> day
 ghci> price "monero" "usd" day
 Right 13.041845958784137
 ```
+To use this library in a stack project, add "coingecko-api-wrapper" to build-depends in the cabal file. In the stack.yaml file, add:
+```
+extra-deps:
+- github: Basti53/coingecko-api-wrapper
+  commit: *insert the hash of the latest commit here*
+```
